@@ -174,16 +174,23 @@ class _TalkerDataCardState extends State<TalkerDataCard> {
   }
 
   String? get _stackTrace {
-    if (widget.data is! TalkerError && widget.data is! TalkerException) {
+    // INTERACTA: in questo modo visualizziamo lo stacktace dell'errore sempre
+    // if (widget.data is! TalkerError && widget.data is! TalkerException) {
+    //   return null;
+    // }
+    // INTERACTA: in questo modo non visualizziamo StackTrace: null
+    if (widget.data.stackTrace == null) {
       return null;
     }
+
     return 'StackTrace:\n${widget.data.stackTrace}';
   }
 
   String? get _message {
-    if (widget.data is TalkerError || widget.data is TalkerException) {
-      return null;
-    }
+    // INTERACTA: in questo modo lasciamo sempre anche il messaggio che accompagna l'errore
+    // if (widget.data is TalkerError || widget.data is TalkerException) {
+    //   return null;
+    // }
     final isHttpLog = [
       TalkerLogType.httpError.key,
       TalkerLogType.httpRequest.key,
@@ -196,8 +203,9 @@ class _TalkerDataCardState extends State<TalkerDataCard> {
   }
 
   String? get _errorMessage {
+    // INTERACTA: fix error
     var txt =
-        widget.data.exception?.toString() ?? widget.data.exception?.toString();
+        widget.data.exception?.toString() ?? widget.data.error?.toString();
 
     if ((txt?.isNotEmpty ?? false) && txt!.contains('Source stack:')) {
       txt = 'Data: ${txt.split('Source stack:').first.replaceAll('\n', '')}';
@@ -206,9 +214,15 @@ class _TalkerDataCardState extends State<TalkerDataCard> {
   }
 
   String? get _type {
-    if (widget.data is! TalkerError && widget.data is! TalkerException) {
+    // INTERACTA: in questo modo visualizziamo il type dell'errore sempre
+    // if (widget.data is! TalkerError && widget.data is! TalkerException) {
+    //   return null;
+    // }
+    // INTERACTA: in questo modo non visualizziamo Type: null
+    if (widget.data.exception == null && widget.data.error == null) {
       return null;
     }
+
     return 'Type: ${widget.data.exception?.runtimeType.toString() ?? widget.data.error?.runtimeType.toString() ?? ''}';
   }
 }
