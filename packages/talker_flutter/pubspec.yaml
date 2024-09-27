@@ -23,7 +23,9 @@ dependencies:
   talker: ^4.4.1
   group_button: ^5.3.4
   path_provider: ^2.1.4
-  share_plus: ^10.0.1
+#  FIX provvisoria in attesa di poter aggiornare web alla 1.0.0
+#  share_plus: ^10.0.1
+  share_plus: ^9.0.0
 
 
 dev_dependencies:
