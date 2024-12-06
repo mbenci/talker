@@ -33,9 +33,7 @@ class TalkerMonitor extends StatelessWidget {
           // INTERACTA: catturiamo anche i log di errore
           // final errors = data.whereType<TalkerError>().toList();
           final errors = logs
-              .where((e) =>
-                  e is TalkerError ||
-                  (e is TalkerLog && e.logLevel == LogLevel.error))
+              .where((e) => e is TalkerError || e.logLevel == LogLevel.error)
               .toList();
 
           final exceptions = data.whereType<TalkerException>().toList();
