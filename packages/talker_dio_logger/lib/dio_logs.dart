@@ -5,6 +5,7 @@ import 'package:talker/talker.dart';
 import 'package:talker_dio_logger/talker_dio_logger.dart';
 
 const _encoder = JsonEncoder.withIndent('  ');
+const _hiddenValue = '*****';
 
 class DioRequestLog extends TalkerLog {
   DioRequestLog(
@@ -20,7 +21,10 @@ class DioRequestLog extends TalkerLog {
   AnsiPen get pen => settings.requestPen ?? (AnsiPen()..xterm(219));
 
   @override
-  String get key => TalkerLogType.httpRequest.key;
+  String get key => TalkerKey.httpRequest;
+
+  @override
+  LogLevel get logLevel => settings.logLevel;
 
   @override
   String generateTextMessage({
@@ -29,21 +33,64 @@ class DioRequestLog extends TalkerLog {
     var msg = '[$title] [${requestOptions.method}] $message';
 
     final data = requestOptions.data;
-    final headers = requestOptions.headers;
+    final headers = Map.from(requestOptions.headers);
 
     try {
       if (settings.printRequestData && data != null) {
-        final prettyData = _encoder.convert(data);
-        msg += '\nData: $prettyData';
+        // If data is FormData, convert it to a map for better readability
+        if (data is FormData) {
+          final formDataMap = <String, dynamic>{};
+          for (var field in data.fields) {
+            formDataMap[field.key] = field.value;
+          }
+          for (var file in data.files) {
+            formDataMap[file.key] = {
+              'filename': file.value.filename,
+              'contentType': file.value.contentType.toString(),
+              'bytes': file.value.length,
+            };
+          }
+
+          msg += '\nData: ${_encoder.convert(formDataMap)}';
+        } else {
+          final prettyData = _encoder.convert(data);
+          msg += '\nData: $prettyData';
+        }
       }
+
       if (settings.printRequestHeaders && headers.isNotEmpty) {
+        // HTTP headers are case-insensitive by standard
+        _replaceHiddenHeaders(headers);
+
         final prettyHeaders = _encoder.convert(headers);
         msg += '\nHeaders: $prettyHeaders';
+      }
+
+      final extra = Map.from(requestOptions.extra);
+      if (settings.printRequestExtra && extra.isNotEmpty) {
+        final prettyExtra = _encoder.convert(extra);
+        msg += '\nExtra: $prettyExtra';
       }
     } catch (_) {
       // TODO: add handling can`t convert
     }
     return msg;
+  }
+
+  void _replaceHiddenHeaders(Map<dynamic, dynamic> headers) {
+    // HTTP headers are case-insensitive by standard
+    final lowerCaseHeaders = <String, String>{};
+    headers.forEach((key, value) {
+      lowerCaseHeaders[key.toLowerCase()] = key;
+    });
+
+    for (final hiddenHeader in settings.hiddenHeaders) {
+      final lowerCaseHiddenHeader = hiddenHeader.toLowerCase();
+      if (lowerCaseHeaders.containsKey(lowerCaseHiddenHeader)) {
+        final originalHeader = lowerCaseHeaders[lowerCaseHiddenHeader]!;
+        headers[originalHeader] = _hiddenValue;
+      }
+    }
   }
 }
 
@@ -52,16 +99,23 @@ class DioResponseLog extends TalkerLog {
     String message, {
     required this.response,
     required this.settings,
-  }) : super(message);
+  })  : responseTime = _getResponseTime(response.requestOptions),
+        super(message);
 
   final Response<dynamic> response;
   final TalkerDioLoggerSettings settings;
+
+  /// Response time in milliseconds, calculated once when the log is created
+  final int? responseTime;
 
   @override
   AnsiPen get pen => settings.responsePen ?? (AnsiPen()..xterm(46));
 
   @override
-  String get key => TalkerLogType.httpResponse.key;
+  String get key => TalkerKey.httpResponse;
+
+  @override
+  LogLevel get logLevel => settings.logLevel;
 
   @override
   String generateTextMessage({
@@ -72,8 +126,15 @@ class DioResponseLog extends TalkerLog {
     final responseMessage = response.statusMessage;
     final data = response.data;
     final headers = response.headers.map;
+    final redirects = response.redirects;
 
     msg += '\nStatus: ${response.statusCode}';
+
+    if (settings.printResponseTime) {
+      if (responseTime != null) {
+        msg += '\nTime: $responseTime ms';
+      }
+    }
 
     if (settings.printResponseMessage && responseMessage != null) {
       msg += '\nMessage: $responseMessage';
@@ -81,12 +142,20 @@ class DioResponseLog extends TalkerLog {
 
     try {
       if (settings.printResponseData && data != null) {
-        final prettyData = _encoder.convert(data);
+        final prettyData = settings.responseDataConverter?.call(response) ??
+            _encoder.convert(data);
         msg += '\nData: $prettyData';
       }
       if (settings.printResponseHeaders && headers.isNotEmpty) {
         final prettyHeaders = _encoder.convert(headers);
         msg += '\nHeaders: $prettyHeaders';
+      }
+
+      if (settings.printResponseRedirects && redirects.isNotEmpty) {
+        final prettyRedirects = redirects.map((redirect) {
+          return '[${redirect.statusCode} ${redirect.method} - ${redirect.location}]';
+        }).join('\n');
+        msg += '\nRedirects:\n$prettyRedirects';
       }
     } catch (_) {
       // TODO: add handling can`t convert
@@ -100,16 +169,23 @@ class DioErrorLog extends TalkerLog {
     String title, {
     required this.dioException,
     required this.settings,
-  }) : super(title);
+  })  : responseTime = _getResponseTime(dioException.requestOptions),
+        super(title);
 
   final DioException dioException;
   final TalkerDioLoggerSettings settings;
+
+  /// Response time in milliseconds, calculated once when the log is created
+  final int? responseTime;
 
   @override
   AnsiPen get pen => settings.errorPen ?? (AnsiPen()..red());
 
   @override
-  String get key => TalkerLogType.httpError.key;
+  String get key => TalkerKey.httpError;
+
+  @override
+  LogLevel get logLevel => LogLevel.error;
 
   @override
   String generateTextMessage({
@@ -126,6 +202,12 @@ class DioErrorLog extends TalkerLog {
       msg += '\nStatus: ${dioException.response?.statusCode}';
     }
 
+    if (settings.printResponseTime) {
+      if (responseTime != null) {
+        msg += '\nTime: $responseTime ms';
+      }
+    }
+
     if (settings.printErrorMessage && responseMessage != null) {
       msg += '\nMessage: $responseMessage';
     }
@@ -140,4 +222,17 @@ class DioErrorLog extends TalkerLog {
     }
     return msg;
   }
+}
+
+///
+/// Get response time
+///
+int? _getResponseTime(RequestOptions options) {
+  final triggerTime = options.extra[TalkerDioLogger.kDioLogsTimeStampKey];
+
+  if (triggerTime is int) {
+    return DateTime.now().millisecondsSinceEpoch - triggerTime;
+  }
+
+  return null;
 }

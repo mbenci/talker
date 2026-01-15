@@ -11,18 +11,12 @@ class TalkerRouteObserver extends NavigatorObserver {
   @override
   void didPush(Route route, Route? previousRoute) {
     super.didPush(route, previousRoute);
-    if (route.settings.name == null) {
-      return;
-    }
     talker.logCustom(TalkerRouteLog(route: route));
   }
 
   @override
   void didPop(Route route, Route? previousRoute) {
     super.didPop(route, previousRoute);
-    if (route.settings.name == null) {
-      return;
-    }
     talker.logCustom(TalkerRouteLog(route: route, isPush: false));
   }
 }
@@ -37,7 +31,7 @@ class TalkerRouteLog extends TalkerLog {
   AnsiPen get pen => AnsiPen()..xterm(135);
 
   @override
-  String get key => TalkerLogType.route.key;
+  String get key => TalkerKey.route;
 
   static String _createMessage(
     Route<dynamic> route,
@@ -45,8 +39,14 @@ class TalkerRouteLog extends TalkerLog {
   ) {
     final buffer = StringBuffer();
     buffer.write(isPush ? 'Open' : 'Close');
-    buffer.write(' route named ');
-    buffer.write(route.settings.name ?? 'null');
+    buffer.write(' ');
+    final routeName = route.settings.name;
+    if (routeName != null) {
+      buffer.write('route named ');
+      buffer.write(routeName);
+    } else {
+      buffer.write(route.runtimeType.toString());
+    }
 
     final args = route.settings.arguments;
     if (args != null) {

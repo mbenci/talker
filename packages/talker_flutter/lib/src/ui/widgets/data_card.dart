@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:talker_flutter/src/ui/theme/default_theme.dart';
 import 'package:talker_flutter/src/ui/widgets/base_card.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 
@@ -174,28 +173,18 @@ class _TalkerDataCardState extends State<TalkerDataCard> {
   }
 
   String? get _stackTrace {
-    // INTERACTA: in questo modo visualizziamo lo stacktace dell'errore sempre
-    // if (widget.data is! TalkerError && widget.data is! TalkerException) {
-    //   return null;
-    // }
-    // INTERACTA: in questo modo non visualizziamo StackTrace: null
     if (widget.data.stackTrace == null) {
       return null;
     }
-
     return 'StackTrace:\n${widget.data.stackTrace}';
   }
 
   String? get _message {
-    // INTERACTA: in questo modo lasciamo sempre anche il messaggio che accompagna l'errore
-    // if (widget.data is TalkerError || widget.data is TalkerException) {
-    //   return null;
-    // }
     final isHttpLog = [
-      TalkerLogType.httpError.key,
-      TalkerLogType.httpRequest.key,
-      TalkerLogType.httpResponse.key,
-    ].contains(widget.data.title);
+      TalkerKey.httpError,
+      TalkerKey.httpRequest,
+      TalkerKey.httpResponse,
+    ].contains(widget.data.key);
     if (isHttpLog) {
       return widget.data.generateTextMessage();
     }
@@ -203,7 +192,6 @@ class _TalkerDataCardState extends State<TalkerDataCard> {
   }
 
   String? get _errorMessage {
-    // INTERACTA: fix error
     var txt =
         widget.data.exception?.toString() ?? widget.data.error?.toString();
 
@@ -214,15 +202,11 @@ class _TalkerDataCardState extends State<TalkerDataCard> {
   }
 
   String? get _type {
-    // INTERACTA: in questo modo visualizziamo il type dell'errore sempre
-    // if (widget.data is! TalkerError && widget.data is! TalkerException) {
-    //   return null;
-    // }
-    // INTERACTA: in questo modo non visualizziamo Type: null
     if (widget.data.exception == null && widget.data.error == null) {
       return null;
     }
-
-    return 'Type: ${widget.data.exception?.runtimeType.toString() ?? widget.data.error?.runtimeType.toString() ?? ''}';
+    final exceptionType = widget.data.exception?.runtimeType.toString();
+    final errorType = widget.data.error?.runtimeType.toString();
+    return 'Type: ${exceptionType ?? errorType}';
   }
 }

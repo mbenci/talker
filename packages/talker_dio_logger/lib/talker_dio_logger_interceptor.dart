@@ -12,21 +12,28 @@ class TalkerDioLogger extends Interceptor {
   TalkerDioLogger({
     Talker? talker,
     this.settings = const TalkerDioLoggerSettings(),
-    this.addonId,
   }) {
     _talker = talker ?? Talker();
+    _talker.settings.registerKeys(
+      [
+        TalkerKey.httpRequest,
+        TalkerKey.httpResponse,
+        TalkerKey.httpError,
+      ],
+    );
   }
+
+  static const kDioLogsTimeStampKey = '_talker_dio_logger_ts_';
 
   late Talker _talker;
 
   /// [TalkerDioLogger] settings and customization
   TalkerDioLoggerSettings settings;
 
-  /// Talker addon functionality
-  /// addon id for create a lot of addons
-  final String? addonId;
-
   /// Method to update [settings] of [TalkerDioLogger]
+  @Deprecated(
+    'Will be removed in 5.0.0 version. Setup settings in constructor',
+  )
   void configure({
     bool? printResponseData,
     bool? printResponseHeaders,
@@ -36,6 +43,7 @@ class TalkerDioLogger extends Interceptor {
     bool? printErrorMessage,
     bool? printRequestData,
     bool? printRequestHeaders,
+    bool? printRequestExtra,
     AnsiPen? requestPen,
     AnsiPen? responsePen,
     AnsiPen? errorPen,
@@ -49,6 +57,7 @@ class TalkerDioLogger extends Interceptor {
       printErrorMessage: printErrorMessage,
       printResponseHeaders: printResponseHeaders,
       printResponseMessage: printResponseMessage,
+      printRequestExtra: printRequestExtra,
       requestPen: requestPen,
       responsePen: responsePen,
       errorPen: errorPen,
@@ -60,6 +69,11 @@ class TalkerDioLogger extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) {
+    if (settings.enabled && settings.printResponseTime) {
+      options.extra[kDioLogsTimeStampKey] =
+          DateTime.now().millisecondsSinceEpoch;
+    }
+
     super.onRequest(options, handler);
     if (!settings.enabled) {
       return;

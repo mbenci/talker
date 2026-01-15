@@ -13,6 +13,7 @@ void main() {
         printErrorHeaders: false,
         requestPen: AnsiPen()..yellow(),
         responseFilter: null,
+        responseDataConverter: null,
       );
 
       expect(updatedSettings.printResponseData, equals(false));
@@ -21,6 +22,7 @@ void main() {
       expect(
           updatedSettings.requestPen, isNot(same(originalSettings.requestPen)));
       expect(updatedSettings.responseFilter, isNull);
+      expect(updatedSettings.responseDataConverter, isNull);
     });
 
     test('requestFilter should return true for allowed paths', () {
@@ -46,6 +48,23 @@ void main() {
 
       expect(settings.responseFilter!(successfulResponse), equals(true));
       expect(settings.responseFilter!(unsuccessfulResponse), equals(false));
+    });
+
+    test('responseDataConverter should return true for successful responses',
+        () {
+      final settings = TalkerDioLoggerSettings(
+          responseDataConverter: (Response response) => "msg");
+
+      final successfulResponse = Response(
+        data: "msg",
+        requestOptions: RequestOptions(path: '/test'),
+        statusCode: 200,
+      );
+
+      expect(
+        settings.responseDataConverter!(successfulResponse),
+        equals("msg"),
+      );
     });
 
     test('errorFilter should return true for cancelled responses', () {
@@ -109,6 +128,33 @@ void main() {
         updatedSettings.errorPen,
         equals(originalSettings.errorPen),
       );
+    });
+
+    test('default logLevel should be debug', () {
+      final settings = TalkerDioLoggerSettings();
+      expect(settings.logLevel, equals(LogLevel.debug));
+    });
+
+    test('copyWith should preserve logLevel if not specified', () {
+      final originalSettings = TalkerDioLoggerSettings(
+        logLevel: LogLevel.warning,
+      );
+      final updatedSettings = originalSettings.copyWith(
+        printResponseData: false,
+      );
+
+      expect(updatedSettings.logLevel, equals(LogLevel.warning));
+    });
+
+    test('copyWith should update logLevel when specified', () {
+      final originalSettings = TalkerDioLoggerSettings(
+        logLevel: LogLevel.debug,
+      );
+      final updatedSettings = originalSettings.copyWith(
+        logLevel: LogLevel.error,
+      );
+
+      expect(updatedSettings.logLevel, equals(LogLevel.error));
     });
   });
 }
